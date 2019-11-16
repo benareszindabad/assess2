@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="67661b49-75bf-4f8f-ad89-51b5f322bf36" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="b5e7a4c7-0f72-4b7b-bcca-cb6fdee065ae" >
+		<http:request-connection host="api.meteostat.net" protocol="HTTPS"/>
+	</http:request-config>
+	<flow name="MaxTempPerMonth" doc:id="bf0b1b2e-3188-4185-b988-4b28f23b5dfb" >
+		<http:listener doc:name="Listener" doc:id="c87ffea1-693d-4ee7-a201-003a331b4c09" config-ref="HTTP_Listener_config" path="/getData"/>
+		<set-variable value="#[attributes.queryParams.month as Number]" doc:name="Set Variable" doc:id="cdab6af7-0261-4f4b-8f3f-c946779074f6" variableName="month"/>
+		<logger level="INFO" doc:name="Logger" doc:id="a0bf1443-c8f3-477c-9ae4-d7885b53f52c" />
+		<http:request method="GET" doc:name="Requesting Meteostat API for Data" doc:id="68d1093f-84e9-4ff5-9229-887b93a09d26" config-ref="HTTP_Request_configuration" path="/v1/history/monthly" sendCorrelationId="AUTO">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"start" : "2009-01",
+	"key" : "1tOMfKvY",
+	"end" : "2009-12",
+	"station" : "71964"
+}]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="82b9b0ed-39fe-4f5e-bbcf-c60590e9aa75" />
+		<ee:transform doc:name="Transform Message" doc:id="5dbba35d-25c9-4ba2-88b9-dc5e0e50704d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload.data[vars.month].temperature_max]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="AvgPrecipationPerWeek" doc:id="7057f0a0-2856-44ea-a8db-506cab2d7236" >
+		<http:listener doc:name="Listener" doc:id="f87c3e18-a76e-4585-8f12-e1f5c39a7154" config-ref="HTTP_Listener_config" path="/avg"/>
+		<logger level="INFO" doc:name="Logger" doc:id="747a7c52-1382-4db0-9e42-49b4bb806983" />
+		<http:request method="GET" doc:name="Request" doc:id="e46951cd-c466-4431-8108-87add1d71e5e" config-ref="HTTP_Request_configuration" path="/v1/history/monthly" sendCorrelationId="AUTO">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"start" : "2009-01",
+	"key" : "1tOMfKvY",
+	"end" : "2009-12",
+	"station" : "71964"
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="b103d084-3b9e-4991-8d4d-d5b0947f9e87" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload.data.precipitation
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="MinTempOfWeek" doc:id="95dba485-93fa-421d-9fef-600fbef6e7bc" >
+		<http:listener doc:name="Listener" doc:id="c8c20731-f524-4bf8-beea-a3ecd6f029a7" config-ref="HTTP_Listener_config" path="/minWeek"/>
+		<logger level="INFO" doc:name="Logger" doc:id="b97de717-f234-41e5-a21d-51bb4fd32f72" />
+		<http:request method="GET" doc:name="Request" doc:id="bfb01130-afcf-4236-91af-7027d89f08a3" config-ref="HTTP_Request_configuration" path="/v1/history/daily" sendCorrelationId="AUTO">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"start" : "2009-01-01",
+	"key" : "1tOMfKvY",
+	"end" : "2009-01-07",
+	"station" : "71508"
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="6342a983-660a-43ea-bcb4-7167143cf50a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+var myVar = {
+	a : min(payload.data.temperature_min)
+}
+output application/json
+---
+myVar]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
